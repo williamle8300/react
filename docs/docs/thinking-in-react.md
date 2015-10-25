@@ -6,8 +6,6 @@ next: conferences.html
 redirect_from: 'blog/2013/11/05/thinking-in-react.html'
 ---
 
-by Pete Hunt
-
 React is, in my opinion, the premier way to build big, fast Web apps with JavaScript. It has scaled very well for us at Facebook and Instagram.
 
 One of the many great parts of React is how it makes you think about apps as you build them. In this post, I'll walk you through the thought process of building a searchable product data table using React.
@@ -65,7 +63,7 @@ Now that we've identified the components in our mock, let's arrange them into a 
 
 Now that you have your component hierarchy, it's time to implement your app. The easiest way is to build a version that takes your data model and renders the UI but has no interactivity. It's best to decouple these processes because building a static version requires a lot of typing and no thinking, and adding interactivity requires a lot of thinking and not a lot of typing. We'll see why.
 
-To build a static version of your app that renders your data model, you'll want to build components that reuse other components and pass data using *props*. *props* are a way of passing data from parent to child. If you're familiar with the concept of *state*, **don't use state at all** to build this static version. State is reserved only for interactivity, that is, data that changes over time. Since this is a static version of the app, you don't need it.
+To build a static version of your app that renders your data model, you'll want to build components that reuse other components and pass data using *props*. *props* are a way of passing data from parent to child. If you're familiar with the concept of *state*, **try to refrain from using state** when building this static version. State is reserved for component behavior that changes either by the client ("user input"), over time (`setInterval`, `setTimeout`), or whatever quality of the component that may alter over the duration of its lifecycle, otherwise called the ["component lifecycle"](https://facebook.github.io/react/docs/component-specs.html). Keyword: state is data that changes _during_ the lifecycle.
 
 You can build top-down or bottom-up. That is, you can either start with building the components higher up in the hierarchy (i.e. starting with `FilterableProductTable`) or with the ones lower in it (`ProductRow`). In simpler examples, it's usually easier to go top-down, and on larger projects, it's easier to go bottom-up and write tests as you build.
 
@@ -85,44 +83,39 @@ To build your app correctly, you first need to think of the minimal set of mutab
 
 Think of all of the pieces of data in our example application. We have:
 
-  * The original list of products
-  * The search text the user has entered
-  * The value of the checkbox
-  * The filtered list of products
+  a) The original list of products
+  b) The search text the user has entered
+  c) The value of the checkbox
+  d) The filtered list of products
 
 Let's go through each one and figure out which one is state. Simply ask three questions about each piece of data:
 
-  1. Is it passed in from a parent via props? If so, it probably isn't state.
-  2. Does it change over time? If not, it probably isn't state.
-  3. Can you compute it based on any other state or props in your component? If so, it's not state.
+  1. Is it passed in from a parent via `this.props`? If so, it's props! Duh.
+  2. Can you derive it from its props? Props!
+  3. Does it change over the duration of the component lifecycle? This is state.
 
-The original list of products is passed in as props, so that's not state. The search text and the checkbox seem to be state since they change over time and can't be computed from anything. And finally, the filtered list of products isn't state because it can be computed by combining the original list of products with the search text and value of the checkbox.
+The a)list of products is passed in as props, so that's obviously not state. d)The filtered list of products isn't state, because you compute it by combining the original list of products with the user's search string. And finally, b)the search text and c)checkbox are state since they change _specifically_ over the duration of the lifecycle.
 
-So finally, our state is:
+Here's our app's state:
 
   * The search text the user has entered
   * The value of the checkbox
 
-## Step 4: Identify where your state should live
+## Step 4: Identify the component that owns the state
 
 <iframe width="100%" height="300" src="https://jsfiddle.net/reactjs/zafjbw1e/embedded/" allowfullscreen="allowfullscreen" frameborder="0"></iframe>
 
-OK, so we've identified what the minimal set of app state is. Next, we need to identify which component mutates, or *owns*, this state.
-
-Remember: React is all about one-way data flow down the component hierarchy. It may not be immediately clear which component should own what state. **This is often the most challenging part for newcomers to understand,** so follow these steps to figure it out:
-
-For each piece of state in your application:
-
-  * Identify every component that renders something based on that state.
-  * Find a common owner component (a single component above all the components that need the state in the hierarchy).
-  * Either the common owner or another component higher up in the hierarchy should own the state.
-  * If you can't find a component where it makes sense to own the state, create a new component simply for holding the state and add it somewhere in the hierarchy above the common owner component.
+OK, so we've identified what the minimal app state is. Next, we need to identify which *owns* this state. Wait... own?
 
 Let's run through this strategy for our application:
 
-  * `ProductTable` needs to filter the product list based on state and `SearchBar` needs to display the search text and checked state.
-  * The common owner component is `FilterableProductTable`.
-  * It conceptually makes sense for the filter text and checked value to live in `FilterableProductTable`
+  * `ProductTable` needs the state to filter the products and `SearchBar` needs the state to display the current user's search string and whether the checkbox is checked.
+  * `FilterableProductTable` contains both of those components
+  * Therefore, the owner is `FilterableProductTable`
+
+*Note:* A good rule of thumb: designate the parent component of all the state-using child components to be the "owner."
+
+As you develop more robust React apps over time, you'll come across conventions like "container components" or "smart and dumb" components. In short, most React architectures will implement a bunch of "smart" components that have the primary task overseeing their particular domain of state and propogating that state to it's components.
 
 Cool, so we've decided that our state lives in `FilterableProductTable`. First, add a `getInitialState()` method to `FilterableProductTable` that returns `{filterText: '', inStockOnly: false}` to reflect the initial state of your application. Then, pass `filterText` and `inStockOnly` to `ProductTable` and `SearchBar` as a prop. Finally, use these props to filter the rows in `ProductTable` and set the values of the form fields in `SearchBar`.
 
